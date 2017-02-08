@@ -123,6 +123,32 @@ func (w *Watcher) Add(name string) error {
 	return nil
 }
 
+func (w *Watcher) AddRecursive(dir string) error {
+	fi, err := os.Stat(dir)
+	if err != nil {
+		return err
+	}
+	if !fi.IsDir() {
+		return errors.New("unable to recursive watch a file")
+	}
+	err = w.Add(dir)
+	if err != nil {
+		return err
+	}
+	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		absPath, _ := filepath.Abs(path)
+		err = w.Add(absPath)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Remove stops watching the named file or directory (non-recursively).
 func (w *Watcher) Remove(name string) error {
 	name = filepath.Clean(name)
@@ -270,6 +296,16 @@ func (w *Watcher) readEvents() {
 			}
 
 			event := newEvent(name, mask)
+			
+			// If event is CREATE add a watcher to that path
+			if mask&unix.IN_CREATE == unix.IN_CREATE {
+				err := w.Add(name)
+				select {
+				case w.Errors <- err:
+				case <-w.done:
+					return
+				}
+			}
 
 			// Send the events that are not ignored on the events channel
 			if !event.ignoreLinux(w, raw.Wd, mask) {
