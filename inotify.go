@@ -307,6 +307,16 @@ func (w *Watcher) readEvents() {
 				}
 			}
 
+			// If event is CREATE add a watcher to that path
+			if mask&unix.IN_CREATE == unix.IN_CREATE {
+				err := w.Add(name)
+				select {
+				case w.Errors <- err:
+				case <-w.done:
+					return
+				}
+			}
+
 			// Send the events that are not ignored on the events channel
 			if !event.ignoreLinux(w, raw.Wd, mask) {
 				select {
@@ -373,8 +383,11 @@ func newEvent(name string, mask uint32) Event {
 	if mask&unix.IN_OPEN == unix.IN_OPEN {
 		e.Op |= Open
 	}
-	if mask&unix.IN_CLOSE_NOWRITE == unix.IN_CLOSE_NOWRITE || mask&unix.IN_CLOSE_WRITE == unix.IN_CLOSE_WRITE {
+	if mask&unix.IN_CLOSE_NOWRITE == unix.IN_CLOSE_NOWRITE {
 		e.Op |= Close
+	}
+	if mask&unix.IN_CLOSE_WRITE == unix.IN_CLOSE_WRITE {
+		e.Op |= CloseWrite
 	}
 	return e
 }

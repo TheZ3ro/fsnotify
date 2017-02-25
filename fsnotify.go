@@ -32,6 +32,7 @@ const (
 	Access
 	Open
 	Close
+	CloseWrite
 )
 
 func (op Op) String() string {
