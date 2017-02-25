@@ -296,19 +296,9 @@ func (w *Watcher) readEvents() {
 			}
 
 			event := newEvent(name, mask)
-			
-			// If event is CREATE add a watcher to that path
-			if mask&unix.IN_CREATE == unix.IN_CREATE {
-				err := w.Add(name)
-				select {
-				case w.Errors <- err:
-				case <-w.done:
-					return
-				}
-			}
 
-			// If event is CREATE add a watcher to that path
-			if mask&unix.IN_CREATE == unix.IN_CREATE {
+			// If event is CREATE or MOVE_SELF add a watcher to that path
+			if mask&unix.IN_CREATE == unix.IN_CREATE || mask&unix.IN_MOVE_SELF == unix.IN_MOVE_SELF {
 				err := w.Add(name)
 				select {
 				case w.Errors <- err:
